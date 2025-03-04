@@ -103,6 +103,18 @@ public:
   }
 };
 
+bool build_targets() {
+  for (Target *target : rebuild_targets) {
+    if (!target->build()) {
+      printf("[rebuild] target %s failed to build (maybe non-existent "
+             "dependency)\n",
+             target->output.c_str());
+      return false;
+    }
+  }
+  return true;
+}
+
 int rebuild_main(int, char **);
 int main(int argc, char **argv, char **envp) {
   printf("[rebuild] building\n");
@@ -111,14 +123,8 @@ int main(int argc, char **argv, char **envp) {
 
   int err = rebuild_main(argc, argv);
   // build
-  for (Target *target : rebuild_targets) {
-    if (!target->build()) {
-      printf("[rebuild] target %s failed to build (maybe non-existent "
-             "dependency)\n",
-             target->output.c_str());
-      break;
-    }
-  }
+  if (build_targets())
+    build_targets();
   // cleanup
   for (Target *target : rebuild_targets) {
     delete target;

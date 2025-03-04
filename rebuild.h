@@ -19,16 +19,17 @@
 #include <vector>
 class Target;
 
-char *rebuild_path;
-char **rebuild_envp;
-std::vector<Target *> rebuild_targets;
-uint64_t last_run_time = 0;
+static char *rebuild_path;
+static char **rebuild_envp;
+static std::vector<Target *> rebuild_targets;
+static uint64_t rebuild_last_run_time = 0;
+static uint32_t rebuild_built_targets = 0;
 
-bool rebuild_fexists(std::string &name) {
+static bool rebuild_fexists(std::string &name) {
   return (access(name.c_str(), F_OK) != -1);
 }
 
-uint64_t rebuild_get_modified_date(std::string &filename) {
+static uint64_t rebuild_get_modified_date(std::string &filename) {
   namespace fs = std::filesystem;
 
   try {
@@ -37,11 +38,11 @@ uint64_t rebuild_get_modified_date(std::string &filename) {
         std::chrono::time_point_cast<std::chrono::system_clock::duration>(
             ftime - fs::file_time_type::clock::now() +
             std::chrono::system_clock::now());
-    auto unixTimestamp = std::chrono::duration_cast<std::chrono::seconds>(
-                             sctp.time_since_epoch())
-                             .count();
+    auto unix_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+                              sctp.time_since_epoch())
+                              .count();
 
-    return static_cast<uint64_t>(unixTimestamp);
+    return static_cast<uint64_t>(unix_timestamp);
   } catch (const fs::filesystem_error &e) {
     return 0;
   }
@@ -63,7 +64,6 @@ public:
     this->command = command;
     this->is_built = false;
   }
-  ~Target() {}
 
   bool build() {
     bool modified = false;
@@ -77,14 +77,16 @@ public:
 
     if (is_built || !modified)
       return true;
-    printf("[rebuild] building: %s\n", output.c_str());
+
+    rebuild_built_targets++;
+    printf("[%3d%%] building: %s\n",
+           100 / rebuild_targets.size() * (rebuild_built_targets),
+           output.c_str());
     for (std::string dependency : depends) {
       if (!rebuild_fexists(dependency)) {
         bool built = false;
         for (Target *target : rebuild_targets) {
           if (target->output == dependency) {
-            printf("[rebuild] building dependency: %s\n",
-                   target->output.c_str());
             if (!target->build()) {
               return false;
             }
@@ -103,12 +105,10 @@ public:
   }
 };
 
-bool build_targets() {
+static bool rebuild_build_targets() {
   for (Target *target : rebuild_targets) {
     if (!target->build()) {
-      printf("[rebuild] target %s failed to build (maybe non-existent "
-             "dependency)\n",
-             target->output.c_str());
+      printf("[ !! ] target %s failed to build\n", target->output.c_str());
       return false;
     }
   }
@@ -117,20 +117,22 @@ bool build_targets() {
 
 int rebuild_main(int, char **);
 int main(int argc, char **argv, char **envp) {
-  printf("[rebuild] building\n");
+  printf("[    ] rebuild by aceinetx (2022-2025)\n");
   rebuild_path = argv[0];
   rebuild_envp = envp;
 
   int err = rebuild_main(argc, argv);
   // build
-  if (build_targets())
-    build_targets();
+  if (rebuild_build_targets())
+    rebuild_build_targets();
   // cleanup
   for (Target *target : rebuild_targets) {
     delete target;
   }
+  printf("[    ] build completed\n");
   return err;
 }
+#undef main
 #define main rebuild_main
 
 #endif

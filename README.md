@@ -1,5 +1,5 @@
 # rebuild
-Incremental build system designed to be a program that compiles another program
+Incremental build system designed to be a program that compiles program(s)
 
 Example usage
 ```cpp

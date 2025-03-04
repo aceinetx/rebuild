@@ -114,7 +114,7 @@ int main(int argc, char **argv, char **envp) {
   for (Target *target : rebuild_targets) {
     if (!target->build()) {
       printf("[rebuild] target %s failed to build (maybe non-existent "
-             "dependency\n",
+             "dependency)\n",
              target->output.c_str());
       break;
     }

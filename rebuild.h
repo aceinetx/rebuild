@@ -53,12 +53,12 @@ static uint64_t rebuild_get_modified_date(std::string &filename) {
   try {
     auto ftime = fs::last_write_time(filename);
     auto sctp =
-        std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-            ftime - fs::file_time_type::clock::now() +
-            std::chrono::system_clock::now());
+	std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+	    ftime - fs::file_time_type::clock::now() +
+	    std::chrono::system_clock::now());
     auto unix_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-                              sctp.time_since_epoch())
-                              .count();
+			      sctp.time_since_epoch())
+			      .count();
 
     return static_cast<uint64_t>(unix_timestamp);
   } catch (const fs::filesystem_error &e) {
@@ -72,7 +72,7 @@ static uint64_t rebuild_get_modified_date(std::string &filename) {
  * Replaces every occurence of str, from &from to &to
  */
 std::string rebuild_replace_all(const std::string &str, const std::string &from,
-                                const std::string &to) {
+				const std::string &to) {
   if (from.empty())
     return str; // Avoid empty substring case
 
@@ -102,10 +102,10 @@ std::string rebuild_join(std::vector<std::string> &vec, const char *delim) {
  * Checks if a string ends with something (C++ <20 solution)
  */
 bool rebuild_ends_with(std::string const &fullString,
-                       std::string const &ending) {
+		       std::string const &ending) {
   if (fullString.length() >= ending.length()) {
     return (0 == fullString.compare(fullString.length() - ending.length(),
-                                    ending.length(), ending));
+				    ending.length(), ending));
   } else {
     return false;
   }
@@ -138,15 +138,15 @@ static std::vector<std::string> rebuild_get_included_headers(
     while (true) {
       size_t len = current_line.length();
       if (len >= 2 && current_line[len - 2] == '\\' &&
-          current_line[len - 1] == '\n') {
-        // Remove the backslash and newline, then continue reading next line
-        current_line.erase(len - 2, 2);
-        if (!fgets(buffer, sizeof(buffer), pipe)) {
-          break; // No more lines to read
-        }
-        current_line += buffer;
+	  current_line[len - 1] == '\n') {
+	// Remove the backslash and newline, then continue reading next line
+	current_line.erase(len - 2, 2);
+	if (!fgets(buffer, sizeof(buffer), pipe)) {
+	  break; // No more lines to read
+	}
+	current_line += buffer;
       } else {
-        break; // Line does not end with a backslash
+	break; // Line does not end with a backslash
       }
     }
 
@@ -174,11 +174,11 @@ static std::vector<std::string> rebuild_get_included_headers(
     // Check if the first prerequisite is the source file
     if (tokens[1] == source_file) {
       for (size_t i = 2; i < tokens.size(); ++i) {
-        const std::string &header = tokens[i];
-        // Add header if not already present
-        if (find(headers.begin(), headers.end(), header) == headers.end()) {
-          headers.push_back(header);
-        }
+	const std::string &header = tokens[i];
+	// Add header if not already present
+	if (find(headers.begin(), headers.end(), header) == headers.end()) {
+	  headers.push_back(header);
+	}
       }
     }
   }
@@ -201,7 +201,7 @@ public:
   std::string command;
 
   Target(std::string output, std::vector<std::string> depends,
-         std::string command) {
+	 std::string command) {
     this->output = output;
     this->depends = depends;
     this->command = command;
@@ -214,9 +214,9 @@ public:
    * Creates a new heap-allocated target
    */
   static Target *create(std::string output, std::vector<std::string> depends,
-                        std::string command) {
+			std::string command) {
     command =
-        rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
+	rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
     return new Target(output, depends, command);
   }
 
@@ -231,12 +231,12 @@ public:
     for (std::string dependency : depends) {
       // If file modified date is after output's modified data
       if (rebuild_get_modified_date(dependency) >= output_date) {
-        modified = true;
+	modified = true;
 #ifdef REBUILD_VERBOSE
-        printf("[    ] %s has been modified, re-building\n",
-               dependency.c_str());
+	printf("[    ] %s has been modified, re-building\n",
+	       dependency.c_str());
 #endif
-        break;
+	break;
       }
     }
 
@@ -245,24 +245,24 @@ public:
 
     rebuild_built_targets++;
     printf("[%3d%%] building: %s\n",
-           100 / rebuild_targets.size() * (rebuild_built_targets),
-           output.c_str());
+	   100 / rebuild_targets.size() * (rebuild_built_targets),
+	   output.c_str());
 
     // Build needed dependencies
     for (std::string dependency : depends) {
       if (!rebuild_fexists(dependency)) {
-        // If a file doesn't exist, we assume it's another target
-        bool built = false;
-        for (Target *target : rebuild_targets) {
-          if (target->output == dependency) {
-            if (!target->build()) {
-              return false;
-            }
-            built = true;
-          }
-        }
-        if (!built)
-          return false;
+	// If a file doesn't exist, we assume it's another target
+	bool built = false;
+	for (Target *target : rebuild_targets) {
+	  if (target->output == dependency) {
+	    if (!target->build()) {
+	      return false;
+	    }
+	    built = true;
+	  }
+	}
+	if (!built)
+	  return false;
       }
     }
 
@@ -286,25 +286,25 @@ public:
    * Creates a new heap-allocated target, auto appends header files
    */
   static Target *create(std::string output, std::vector<std::string> depends,
-                        std::string command,
-                        std::string compiler = REBUILD_STANDARD_CXX_COMPILER,
-                        std::string compiler_args = "") {
+			std::string command,
+			std::string compiler = REBUILD_STANDARD_CXX_COMPILER,
+			std::string compiler_args = "") {
     command =
-        rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
+	rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
     std::vector<std::string> todo_depends = {};
     for (std::string dependency : depends) {
       if (rebuild_ends_with(dependency, ".c") ||
-          rebuild_ends_with(dependency, ".cpp") ||
-          rebuild_ends_with(dependency, ".cc")) {
-        for (std::string hdr : rebuild_get_included_headers(
-                 dependency, compiler, compiler_args)) {
-          todo_depends.push_back(hdr);
-        }
+	  rebuild_ends_with(dependency, ".cpp") ||
+	  rebuild_ends_with(dependency, ".cc")) {
+	for (std::string hdr : rebuild_get_included_headers(
+		 dependency, compiler, compiler_args)) {
+	  todo_depends.push_back(hdr);
+	}
       } else {
 #ifndef REBUILD_NO_WARNINGS
-        printf("[    ] warning: %s: headers will not be parsed (non-source "
-               "file)\n",
-               dependency.c_str());
+	printf("[    ] warning: %s: headers will not be parsed (non-source "
+	       "file)\n",
+	       dependency.c_str());
 #endif
       }
     }

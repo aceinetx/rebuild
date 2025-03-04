@@ -3,6 +3,7 @@
  * Copyright (c) aceinet
  * License: GPL-2.0
  */
+#define REBUILD_VERBOSE
 #include "rebuild.h"
 
 int main(int argc, char **argv) {

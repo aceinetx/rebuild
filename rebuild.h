@@ -56,7 +56,7 @@ static uint64_t rebuild_get_modified_date(std::string &filename) {
         std::chrono::time_point_cast<std::chrono::system_clock::duration>(
             ftime - fs::file_time_type::clock::now() +
             std::chrono::system_clock::now());
-    auto unix_timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+    auto unix_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
                               sctp.time_since_epoch())
                               .count();
 
@@ -232,6 +232,10 @@ public:
       // If file modified date is after output's modified data
       if (rebuild_get_modified_date(dependency) >= output_date) {
         modified = true;
+#ifdef REBUILD_VERBOSE
+        printf("[    ] %s has been modified, re-building\n",
+               dependency.c_str());
+#endif
         break;
       }
     }
@@ -307,7 +311,9 @@ public:
 
     for (std::string dependency : todo_depends) {
       depends.push_back(dependency);
+#ifdef REBUILD_VERBOSE
       printf("[    ] auto-added dependency: %s\n", dependency.c_str());
+#endif
     }
     return Target::create(output, depends, command);
   }

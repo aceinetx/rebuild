@@ -14,6 +14,6 @@ int main(int argc, char **argv) {
 ```
 
 # Get started
-- Download the header: ```wget https://raw.githubusercontent.com/aceinetx/rebuild/refs/heads/main/rebuild.h``
+- Download the header: ```wget https://raw.githubusercontent.com/aceinetx/rebuild/refs/heads/main/rebuild.h```
 - Write rebuild.cpp with your targets (ref. above)
 - Compile rebuild: ```g++ -o rebuild rebuild.cpp```

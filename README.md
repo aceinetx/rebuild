@@ -1,7 +1,7 @@
 # rebuild
 Incremental build system designed to be a program that compiles program(s)
 
-Example usage
+# Example usage
 ```cpp
 #include "rebuild.h"
 
@@ -12,3 +12,8 @@ int main(int argc, char **argv) {
   return 0;
 }
 ```
+
+# Get started
+- Download the header: ```wget https://raw.githubusercontent.com/aceinetx/rebuild/refs/heads/main/rebuild.h``
+- Write rebuild.cpp with your targets (ref. above)
+- Compile rebuild: ```g++ -o rebuild rebuild.cpp```

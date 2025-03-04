@@ -17,3 +17,6 @@ int main(int argc, char **argv) {
 - Download the header: ```wget https://raw.githubusercontent.com/aceinetx/rebuild/refs/heads/main/rebuild.h```
 - Write rebuild.cpp with your targets (ref. above)
 - Compile rebuild: ```g++ -o rebuild rebuild.cpp```
+
+# When you might NOT want to use rebuild
+For basically the same reasons you don't want to use makefiles

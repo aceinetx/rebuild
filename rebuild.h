@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <sstream>
 #include <stdio.h>
 #include <string>
@@ -63,6 +64,36 @@ static uint64_t rebuild_get_modified_date(std::string &filename) {
   } catch (const fs::filesystem_error &e) {
     return 0;
   }
+}
+
+/*
+ * rebuild_replace_all
+ * -------------------
+ * Replaces every occurence of str, from &from to &to
+ */
+std::string rebuild_replace_all(const std::string &str, const std::string &from,
+                                const std::string &to) {
+  if (from.empty())
+    return str; // Avoid empty substring case
+
+  std::string result = str; // Create a copy of the original string
+  size_t start_pos = 0;
+  while ((start_pos = result.find(from, start_pos)) != std::string::npos) {
+    result.replace(start_pos, from.length(), to);
+    start_pos += to.length(); // Move past the replaced part
+  }
+  return result; // Return the modified string
+}
+
+/*
+ * rebuild_join
+ * ------------
+ * Joins a string vector into one string
+ */
+std::string rebuild_join(std::vector<std::string> &vec, const char *delim) {
+  std::stringstream res;
+  copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
+  return res.str();
 }
 
 /*
@@ -184,6 +215,8 @@ public:
    */
   static Target *create(std::string output, std::vector<std::string> depends,
                         std::string command) {
+    command =
+        rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
     return new Target(output, depends, command);
   }
 
@@ -252,6 +285,8 @@ public:
                         std::string command,
                         std::string compiler = REBUILD_STANDARD_CXX_COMPILER,
                         std::string compiler_args = "") {
+    command =
+        rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
     std::vector<std::string> todo_depends = {};
     for (std::string dependency : depends) {
       if (rebuild_ends_with(dependency, ".c") ||
@@ -274,7 +309,7 @@ public:
       depends.push_back(dependency);
       printf("[    ] auto-added dependency: %s\n", dependency.c_str());
     }
-    return new Target(output, depends, command);
+    return Target::create(output, depends, command);
   }
 };
 

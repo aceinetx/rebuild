@@ -203,6 +203,7 @@ public:
 	 */
 	static Target *create(std::string output, std::vector<std::string> depends, std::string command) {
 		command = rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
+		command = rebuild_replace_all(command, "#OUT", rebuild_join(output, " "));
 		return new Target(output, depends, command);
 	}
 

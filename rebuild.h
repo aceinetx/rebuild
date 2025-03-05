@@ -13,6 +13,7 @@
 #define REBUILD_STANDARD_CXX_COMPILER "g++"
 
 #include <algorithm>
+#include <assert.h>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -39,7 +40,7 @@ static uint32_t rebuild_built_targets = 0;
  * Checks if a file exists
  */
 static bool rebuild_fexists(std::string &name) {
-  return (access(name.c_str(), F_OK) != -1);
+	return (access(name.c_str(), F_OK) != -1);
 }
 
 /*
@@ -48,22 +49,17 @@ static bool rebuild_fexists(std::string &name) {
  * Gets last modified date of a file in UNIX time
  */
 static uint64_t rebuild_get_modified_date(std::string &filename) {
-  namespace fs = std::filesystem;
+	namespace fs = std::filesystem;
 
-  try {
-    auto ftime = fs::last_write_time(filename);
-    auto sctp =
-	std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-	    ftime - fs::file_time_type::clock::now() +
-	    std::chrono::system_clock::now());
-    auto unix_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-			      sctp.time_since_epoch())
-			      .count();
+	try {
+		auto ftime = fs::last_write_time(filename);
+		auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+		auto unix_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(sctp.time_since_epoch()).count();
 
-    return static_cast<uint64_t>(unix_timestamp);
-  } catch (const fs::filesystem_error &e) {
-    return 0;
-  }
+		return static_cast<uint64_t>(unix_timestamp);
+	} catch (const fs::filesystem_error &e) {
+		return 0;
+	}
 }
 
 /*
@@ -71,18 +67,17 @@ static uint64_t rebuild_get_modified_date(std::string &filename) {
  * -------------------
  * Replaces every occurence of str, from &from to &to
  */
-std::string rebuild_replace_all(const std::string &str, const std::string &from,
-				const std::string &to) {
-  if (from.empty())
-    return str; // Avoid empty substring case
+std::string rebuild_replace_all(const std::string &str, const std::string &from, const std::string &to) {
+	if (from.empty())
+		return str; // Avoid empty substring case
 
-  std::string result = str; // Create a copy of the original string
-  size_t start_pos = 0;
-  while ((start_pos = result.find(from, start_pos)) != std::string::npos) {
-    result.replace(start_pos, from.length(), to);
-    start_pos += to.length(); // Move past the replaced part
-  }
-  return result; // Return the modified string
+	std::string result = str; // Create a copy of the original string
+	size_t start_pos = 0;
+	while ((start_pos = result.find(from, start_pos)) != std::string::npos) {
+		result.replace(start_pos, from.length(), to);
+		start_pos += to.length(); // Move past the replaced part
+	}
+	return result; // Return the modified string
 }
 
 /*
@@ -91,9 +86,9 @@ std::string rebuild_replace_all(const std::string &str, const std::string &from,
  * Joins a string vector into one string
  */
 std::string rebuild_join(std::vector<std::string> &vec, const char *delim) {
-  std::stringstream res;
-  copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
-  return res.str();
+	std::stringstream res;
+	copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
+	return res.str();
 }
 
 /*
@@ -101,14 +96,12 @@ std::string rebuild_join(std::vector<std::string> &vec, const char *delim) {
  * -----------------
  * Checks if a string ends with something (C++ <20 solution)
  */
-bool rebuild_ends_with(std::string const &fullString,
-		       std::string const &ending) {
-  if (fullString.length() >= ending.length()) {
-    return (0 == fullString.compare(fullString.length() - ending.length(),
-				    ending.length(), ending));
-  } else {
-    return false;
-  }
+bool rebuild_ends_with(std::string const &fullString, std::string const &ending) {
+	if (fullString.length() >= ending.length()) {
+		return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
+	} else {
+		return false;
+	}
 }
 
 /*
@@ -116,74 +109,70 @@ bool rebuild_ends_with(std::string const &fullString,
  * ----------------------------
  * Gets included headers used by source_file (with g++)
  */
-static std::vector<std::string> rebuild_get_included_headers(
-    std::string source_file,
-    std::string compiler = REBUILD_STANDARD_CXX_COMPILER,
-    std::string compiler_args = "") {
-  std::vector<std::string> headers;
-  std::string command = compiler + " -MM " + source_file + " " + compiler_args;
-  FILE *pipe = popen(command.c_str(), "r");
-  if (!pipe) {
-    return headers; // Failed to open pipe
-  }
-
-  std::vector<std::string> lines;
-  std::string current_line;
-  char buffer[256];
-
-  while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-    current_line += buffer;
-
-    // Check if the current line ends with a backslash followed by a newline
-    while (true) {
-      size_t len = current_line.length();
-      if (len >= 2 && current_line[len - 2] == '\\' &&
-	  current_line[len - 1] == '\n') {
-	// Remove the backslash and newline, then continue reading next line
-	current_line.erase(len - 2, 2);
-	if (!fgets(buffer, sizeof(buffer), pipe)) {
-	  break; // No more lines to read
+static std::vector<std::string> rebuild_get_included_headers(std::string source_file, std::string compiler = REBUILD_STANDARD_CXX_COMPILER, std::string compiler_args = "") {
+	std::vector<std::string> headers;
+	std::string command = compiler + " -MM " + source_file + " " + compiler_args;
+	FILE *pipe = popen(command.c_str(), "r");
+	if (!pipe) {
+		return headers; // Failed to open pipe
 	}
-	current_line += buffer;
-      } else {
-	break; // Line does not end with a backslash
-      }
-    }
 
-    // Add the processed line (merged continuation lines) to the lines vector
-    if (!current_line.empty()) {
-      lines.push_back(current_line);
-      current_line.clear();
-    }
-  }
-  pclose(pipe);
+	std::vector<std::string> lines;
+	std::string current_line;
+	char buffer[256];
 
-  // Process each line to find headers
-  for (const auto &line : lines) {
-    std::istringstream iss(line);
-    std::vector<std::string> tokens;
-    std::string token;
-    while (iss >> token) {
-      tokens.push_back(token);
-    }
+	while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+		current_line += buffer;
 
-    if (tokens.size() < 2) {
-      continue; // Skip invalid lines
-    }
+		// Check if the current line ends with a backslash followed by a newline
+		while (true) {
+			size_t len = current_line.length();
+			if (len >= 2 && current_line[len - 2] == '\\' && current_line[len - 1] == '\n') {
+				// Remove the backslash and newline, then continue reading next line
+				current_line.erase(len - 2, 2);
+				if (!fgets(buffer, sizeof(buffer), pipe)) {
+					break; // No more lines to read
+				}
+				current_line += buffer;
+			} else {
+				break; // Line does not end with a backslash
+			}
+		}
 
-    // Check if the first prerequisite is the source file
-    if (tokens[1] == source_file) {
-      for (size_t i = 2; i < tokens.size(); ++i) {
-	const std::string &header = tokens[i];
-	// Add header if not already present
-	if (find(headers.begin(), headers.end(), header) == headers.end()) {
-	  headers.push_back(header);
+		// Add the processed line (merged continuation lines) to the lines vector
+		if (!current_line.empty()) {
+			lines.push_back(current_line);
+			current_line.clear();
+		}
 	}
-      }
-    }
-  }
+	pclose(pipe);
 
-  return headers;
+	// Process each line to find headers
+	for (const auto &line : lines) {
+		std::istringstream iss(line);
+		std::vector<std::string> tokens;
+		std::string token;
+		while (iss >> token) {
+			tokens.push_back(token);
+		}
+
+		if (tokens.size() < 2) {
+			continue; // Skip invalid lines
+		}
+
+		// Check if the first prerequisite is the source file
+		if (tokens[1] == source_file) {
+			for (size_t i = 2; i < tokens.size(); ++i) {
+				const std::string &header = tokens[i];
+				// Add header if not already present
+				if (find(headers.begin(), headers.end(), header) == headers.end()) {
+					headers.push_back(header);
+				}
+			}
+		}
+	}
+
+	return headers;
 }
 
 /*
@@ -193,84 +182,78 @@ static std::vector<std::string> rebuild_get_included_headers(
  */
 class Target {
 private:
-  bool is_built;
+	bool is_built;
 
 public:
-  std::string output;
-  std::vector<std::string> depends;
-  std::string command;
+	std::string output;
+	std::vector<std::string> depends;
+	std::string command;
 
-  Target(std::string output, std::vector<std::string> depends,
-	 std::string command) {
-    this->output = output;
-    this->depends = depends;
-    this->command = command;
-    this->is_built = false;
-  }
-
-  /*
-   * Target::create
-   * -------------
-   * Creates a new heap-allocated target
-   */
-  static Target *create(std::string output, std::vector<std::string> depends,
-			std::string command) {
-    command =
-	rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
-    return new Target(output, depends, command);
-  }
-
-  /*
-   * Target::build
-   * -------------
-   * Builds this target
-   */
-  bool build() {
-    bool modified = false;
-    uint64_t output_date = rebuild_get_modified_date(output);
-    for (std::string dependency : depends) {
-      // If file modified date is after output's modified data
-      if (rebuild_get_modified_date(dependency) >= output_date) {
-	modified = true;
-#ifdef REBUILD_VERBOSE
-	printf("[    ] %s has been modified, re-building\n",
-	       dependency.c_str());
-#endif
-	break;
-      }
-    }
-
-    if (is_built || !modified)
-      return true;
-
-    rebuild_built_targets++;
-    printf("[%3d%%] building: %s\n",
-	   100 / rebuild_targets.size() * (rebuild_built_targets),
-	   output.c_str());
-
-    // Build needed dependencies
-    for (std::string dependency : depends) {
-      if (!rebuild_fexists(dependency)) {
-	// If a file doesn't exist, we assume it's another target
-	bool built = false;
-	for (Target *target : rebuild_targets) {
-	  if (target->output == dependency) {
-	    if (!target->build()) {
-	      return false;
-	    }
-	    built = true;
-	  }
+	Target(std::string output, std::vector<std::string> depends, std::string command) {
+		this->output = output;
+		this->depends = depends;
+		this->command = command;
+		this->is_built = false;
 	}
-	if (!built)
-	  return false;
-      }
-    }
 
-    system(command.c_str());
-    is_built = true;
+	/*
+	 * Target::create
+	 * -------------
+	 * Creates a new heap-allocated target
+	 */
+	static Target *create(std::string output, std::vector<std::string> depends, std::string command) {
+		command = rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
+		return new Target(output, depends, command);
+	}
 
-    return true;
-  }
+	/*
+	 * Target::build
+	 * -------------
+	 * Builds this target
+	 */
+	bool build() {
+		bool modified = false;
+		uint64_t output_date = rebuild_get_modified_date(output);
+		for (std::string dependency : depends) {
+			// If file modified date is after output's modified data
+			if (rebuild_get_modified_date(dependency) >= output_date) {
+				modified = true;
+#ifdef REBUILD_VERBOSE
+				printf("[    ] %s has been modified, re-building\n", dependency.c_str());
+#endif
+				break;
+			}
+		}
+
+		if (is_built || !modified)
+			return true;
+
+		rebuild_built_targets++;
+		printf("[%3d%%] building: %s\n", 100 / rebuild_targets.size() * (rebuild_built_targets), output.c_str());
+
+		// Build needed dependencies
+		for (std::string dependency : depends) {
+			if (!rebuild_fexists(dependency)) {
+				// If a file doesn't exist, we assume it's another target
+				bool built = false;
+				for (Target *target : rebuild_targets) {
+					if (target->output == dependency) {
+						if (!target->build()) {
+							return false;
+						}
+						built = true;
+					}
+				}
+				if (!built)
+					return false;
+			}
+		}
+
+		system(command.c_str());
+		is_built = true;
+
+		return true;
+	}
 };
 
 /*
@@ -280,43 +263,36 @@ public:
  */
 class CTarget : public Target {
 public:
-  /*
-   * CTarget::create
-   * --------------
-   * Creates a new heap-allocated target, auto appends header files
-   */
-  static Target *create(std::string output, std::vector<std::string> depends,
-			std::string command,
-			std::string compiler = REBUILD_STANDARD_CXX_COMPILER,
-			std::string compiler_args = "") {
-    command =
-	rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
-    std::vector<std::string> todo_depends = {};
-    for (std::string dependency : depends) {
-      if (rebuild_ends_with(dependency, ".c") ||
-	  rebuild_ends_with(dependency, ".cpp") ||
-	  rebuild_ends_with(dependency, ".cc")) {
-	for (std::string hdr : rebuild_get_included_headers(
-		 dependency, compiler, compiler_args)) {
-	  todo_depends.push_back(hdr);
-	}
-      } else {
+	/*
+	 * CTarget::create
+	 * --------------
+	 * Creates a new heap-allocated target, auto appends header files
+	 */
+	static Target *create(std::string output, std::vector<std::string> depends, std::string command, std::string compiler = REBUILD_STANDARD_CXX_COMPILER, std::string compiler_args = "") {
+		command = rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
+		std::vector<std::string> todo_depends = {};
+		for (std::string dependency : depends) {
+			if (rebuild_ends_with(dependency, ".c") || rebuild_ends_with(dependency, ".cpp") || rebuild_ends_with(dependency, ".cc")) {
+				for (std::string hdr : rebuild_get_included_headers(dependency, compiler, compiler_args)) {
+					todo_depends.push_back(hdr);
+				}
+			} else {
 #ifndef REBUILD_NO_WARNINGS
-	printf("[    ] warning: %s: headers will not be parsed (non-source "
-	       "file)\n",
-	       dependency.c_str());
+				printf("[    ] warning: %s: headers will not be parsed (non-source "
+							 "file)\n",
+							 dependency.c_str());
 #endif
-      }
-    }
+			}
+		}
 
-    for (std::string dependency : todo_depends) {
-      depends.push_back(dependency);
+		for (std::string dependency : todo_depends) {
+			depends.push_back(dependency);
 #ifdef REBUILD_VERBOSE
-      printf("[    ] auto-added dependency: %s\n", dependency.c_str());
+			printf("[    ] auto-added dependency: %s\n", dependency.c_str());
 #endif
-    }
-    return Target::create(output, depends, command);
-  }
+		}
+		return Target::create(output, depends, command);
+	}
 };
 
 /*
@@ -325,31 +301,73 @@ public:
  * Build all targets once
  */
 static bool rebuild_build_targets() {
-  for (Target *target : rebuild_targets) {
-    if (!target->build()) {
-      printf("[ !! ] target %s failed to build\n", target->output.c_str());
-      return false;
-    }
-  }
-  return true;
+	for (Target *target : rebuild_targets) {
+		if (!target->build()) {
+			printf("[ !! ] target %s failed to build\n", target->output.c_str());
+			return false;
+		}
+	}
+	return true;
+}
+
+/*
+ * rebuild_args_shift
+ * ------------------
+ * Shifts arguments
+ */
+static std::string rebuild_args_shift(int *argc, char ***argv) {
+	assert(*argc > 0 && "argc <= 0");
+	--(*argc);
+	return *(*argv)++;
 }
 
 int rebuild_main(int, char **);
 int main(int argc, char **argv, char **envp) {
-  printf("[    ] rebuild by aceinetx (2022-2025)\n");
-  rebuild_path = argv[0];
-  rebuild_envp = envp;
+	printf("[    ] rebuild by aceinetx (2022-2025)\n");
+	rebuild_path = argv[0];
+	rebuild_envp = envp;
 
-  int err = rebuild_main(argc, argv);
-  // build
-  if (rebuild_build_targets())
-    rebuild_build_targets();
-  // cleanup
-  for (Target *target : rebuild_targets) {
-    delete target;
-  }
-  printf("[    ] build completed\n");
-  return err;
+	for (unsigned int i = 0; argc; ++i) {
+		std::string arg = rebuild_args_shift(&argc, &argv);
+		if (arg == "help") {
+			printf("[    ] usage: rebuild [option]\n");
+			printf("[    ] options:\n");
+			printf("[    ]  - build     builds stuff\n");
+			printf("[    ]  - clean     cleans targets outputs\n");
+			return 0;
+		} else if (arg == "build") {
+			int err = rebuild_main(argc, argv);
+			if (err != 0) {
+				printf("[    ] exit with code %d\n", err);
+				return err;
+			}
+			// build
+			if (rebuild_build_targets())
+				rebuild_build_targets();
+			// cleanup
+			for (Target *target : rebuild_targets) {
+				delete target;
+			}
+			printf("[    ] build completed\n");
+			return err;
+		} else if (arg == "clean") {
+			int err = rebuild_main(argc, argv);
+			if (err != 0) {
+				printf("[    ] exit with code %d\n", err);
+				return err;
+			}
+			for (Target *target : rebuild_targets) {
+				try {
+					std::filesystem::remove(target->output);
+					printf("[    ] removed %s\n", target->output.c_str());
+				} catch (...) {
+					printf("[    ] failed to remove %s\n", target->output.c_str());
+				}
+			}
+			return err;
+		}
+	}
+	printf("[    ] no options provided. check `rebuild help`\n");
 }
 #undef main
 #define main rebuild_main

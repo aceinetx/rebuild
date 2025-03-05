@@ -33,6 +33,7 @@ static char **rebuild_envp;
 static std::vector<Target *> rebuild_targets;
 static uint64_t rebuild_last_run_time = 0;
 static uint32_t rebuild_built_targets = 0;
+static uint32_t rebuild_total_targets = 0;
 
 /*
  * rebuild_fexists
@@ -208,29 +209,41 @@ public:
 	}
 
 	/*
-	 * Target::build
-	 * -------------
-	 * Builds this target
+	 * Target::needs_building
+	 * ----------------------
+	 * Check if the target should be built
 	 */
-	bool build() {
+	bool needs_building() {
 		bool modified = false;
 		uint64_t output_date = rebuild_get_modified_date(output);
 		for (std::string dependency : depends) {
 			// If file modified date is after output's modified data
 			if (rebuild_get_modified_date(dependency) >= output_date) {
 				modified = true;
-#ifdef REBUILD_VERBOSE
-				printf("[    ] %s has been modified, re-building\n", dependency.c_str());
-#endif
 				break;
 			}
 		}
 
 		if (is_built || !modified)
+			return false;
+
+		return true;
+	}
+
+	/*
+	 * Target::build
+	 * -------------
+	 * Builds this target
+	 */
+	bool build() {
+		if (!needs_building())
 			return true;
 
 		rebuild_built_targets++;
-		printf("[%3d%%] building: %s\n", 100 / rebuild_targets.size() * (rebuild_built_targets), output.c_str());
+		int percent = 100 / rebuild_total_targets * (rebuild_built_targets);
+		if (percent > 100)
+			percent = 100;
+		printf("[%3d%%] building: %s\n", percent, output.c_str());
 
 		// Build needed dependencies
 		for (std::string dependency : depends) {
@@ -322,6 +335,19 @@ static std::string rebuild_args_shift(int *argc, char ***argv) {
 	return *(*argv)++;
 }
 
+/*
+ * rebuild_update_total_targets
+ * ----------------------------
+ * Updates total targets
+ */
+static void rebuild_update_total_targets() {
+	rebuild_total_targets = 0;
+	for (Target *target : rebuild_targets) {
+		if (target->needs_building())
+			rebuild_total_targets++;
+	}
+}
+
 int rebuild_main(int, char **);
 int main(int argc, char **argv, char **envp) {
 	printf("[    ] rebuild by aceinetx (2022-2025)\n");
@@ -342,6 +368,7 @@ int main(int argc, char **argv, char **envp) {
 				printf("[    ] exit with code %d\n", err);
 				return err;
 			}
+			rebuild_update_total_targets();
 			// build
 			if (rebuild_build_targets())
 				rebuild_build_targets();

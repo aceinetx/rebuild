@@ -9,8 +9,9 @@
 #error "rebuild requires c++"
 #else
 
-#undef REBUILD_STANDARD_CXX_COMPILER
+#ifndef REBUILD_STANDARD_CXX_COMPILER
 #define REBUILD_STANDARD_CXX_COMPILER "g++"
+#endif
 
 #include <algorithm>
 #include <assert.h>
@@ -103,6 +104,19 @@ bool rebuild_ends_with(std::string const &fullString, std::string const &ending)
 	} else {
 		return false;
 	}
+}
+
+/*
+ * rebuild_get_percentage
+ * ----------------------
+ * Gets current build progress in percentages
+ */
+static int rebuild_get_percentage() {
+	int percent = 100 / rebuild_total_targets * (rebuild_built_targets);
+
+	if (percent > 100)
+		percent = 100;
+	return percent;
 }
 
 /*
@@ -199,7 +213,7 @@ public:
 
 	/*
 	 * Target::create
-	 * -------------
+	 * --------------
 	 * Creates a new heap-allocated target
 	 */
 	static Target *create(std::string output, std::vector<std::string> depends, std::string command) {
@@ -215,6 +229,20 @@ public:
 	 */
 	bool needs_building() {
 		bool modified = false;
+
+		if (is_built)
+			return false;
+		for (std::string dependency : depends) {
+			for (Target *target : rebuild_targets) {
+				if (target->output != dependency) {
+					continue;
+				}
+				if (target->needs_building()) {
+					return true;
+				}
+			}
+		}
+
 		uint64_t output_date = rebuild_get_modified_date(output);
 		for (std::string dependency : depends) {
 			// If file modified date is after output's modified data
@@ -224,7 +252,7 @@ public:
 			}
 		}
 
-		if (is_built || !modified)
+		if (!modified)
 			return false;
 
 		return true;
@@ -240,28 +268,29 @@ public:
 			return true;
 
 		rebuild_built_targets++;
-		int percent = 100 / rebuild_total_targets * (rebuild_built_targets);
-		if (percent > 100)
-			percent = 100;
+
+		int percent;
+		percent = rebuild_get_percentage();
+
 		printf("[%3d%%] building: %s\n", percent, output.c_str());
 
 		// Build needed dependencies
 		for (std::string dependency : depends) {
-			if (!rebuild_fexists(dependency)) {
-				// If a file doesn't exist, we assume it's another target
-				bool built = false;
-				for (Target *target : rebuild_targets) {
-					if (target->output == dependency) {
-						if (!target->build()) {
-							return false;
-						}
-						built = true;
+			for (Target *target : rebuild_targets) {
+				if (target->output == dependency) {
+					if (!target->build()) {
+						return false;
 					}
+					break;
 				}
-				if (!built)
-					return false;
+			}
+			if (!rebuild_fexists(dependency)) {
+				return false;
 			}
 		}
+
+		percent = rebuild_get_percentage();
+		printf("[%3d%%] running build cmd for %s\n", percent, output.c_str());
 
 		system(command.c_str());
 		is_built = true;
@@ -272,14 +301,14 @@ public:
 
 /*
  * CTarget
- * ------
+ * -------
  * Same as Target, but auto appends needed header files using g++ -MM
  */
 class CTarget : public Target {
 public:
 	/*
 	 * CTarget::create
-	 * --------------
+	 * ---------------
 	 * Creates a new heap-allocated target, auto appends header files
 	 */
 	static Target *create(std::string output, std::vector<std::string> depends, std::string command, std::string compiler = REBUILD_STANDARD_CXX_COMPILER, std::string compiler_args = "") {
@@ -359,6 +388,7 @@ int main(int argc, char **argv, char **envp) {
 		if (arg == "help") {
 			printf("[    ] usage: rebuild [option]\n");
 			printf("[    ] options:\n");
+			printf("[    ]  - help      print help\n");
 			printf("[    ]  - build     builds stuff\n");
 			printf("[    ]  - clean     cleans targets outputs\n");
 			return 0;
@@ -369,14 +399,20 @@ int main(int argc, char **argv, char **envp) {
 				return err;
 			}
 			rebuild_update_total_targets();
+
 			// build
-			if (rebuild_build_targets())
+			if (rebuild_total_targets != 0) {
 				rebuild_build_targets();
+			} else {
+				printf("[    ] no work to do\n");
+			}
+
 			// cleanup
 			for (Target *target : rebuild_targets) {
 				delete target;
 			}
-			printf("[    ] build completed\n");
+
+			printf("[100%%] build completed\n");
 			return err;
 		} else if (arg == "clean") {
 			int err = rebuild_main(argc, argv);

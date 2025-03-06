@@ -67,7 +67,7 @@ static uint64_t rebuild_get_modified_date(std::string &filename) {
 /*
  * rebuild_replace_all
  * -------------------
- * Replaces every occurence of str, from &from to &to
+ * Replaces every occurence in &str from &from to &to
  */
 std::string rebuild_replace_all(const std::string &str, const std::string &from, const std::string &to) {
 	if (from.empty())

@@ -24,3 +24,8 @@ int main(int argc, char **argv) {
 
 # When you might NOT want to use rebuild
 For basically the same reasons you don't want to use makefiles
+
+# rebuild is confirmed working on
+- Linux
+- MSYS2
+- Android

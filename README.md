@@ -18,5 +18,9 @@ int main(int argc, char **argv) {
 - Write rebuild.cpp with your targets (ref. above)
 - Compile rebuild: ```g++ -o rebuild rebuild.cpp```
 
+# When you might want to use rebuild
+- If you want a makefile-like lightweight build system
+- If you don't want to type all your header dependencies (CTarget does this automatically)
+
 # When you might NOT want to use rebuild
 For basically the same reasons you don't want to use makefiles

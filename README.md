@@ -6,9 +6,9 @@ Incremental build system designed to be a program that compiles program(s)
 #include "rebuild.h"
 
 int main(int argc, char **argv) {
-  rebuild_targets.push_back(Target::create("a", {"b.o", "a.o"}, "gcc -o a #DEPENDS"));
-  rebuild_targets.push_back(CTarget::create("a.o", {"a.c"}, "gcc -o a.o -c a.c #DEPENDS"));
-  rebuild_targets.push_back(CTarget::create("b.o", {"b.c"}, "gcc -o b.o -c b.c #DEPENDS"));
+  rebuild_targets.push_back(Target::create("a", {"b.o", "a.o"}, "gcc -o #OUT #DEPENDS"));
+  rebuild_targets.push_back(CTarget::create("a.o", {"a.c"}, "gcc -o #OUT -c #DEPENDS"));
+  rebuild_targets.push_back(CTarget::create("b.o", {"b.c"}, "gcc -o #OUT -c #DEPENDS"));
   return 0;
 }
 ```

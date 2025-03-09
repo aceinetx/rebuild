@@ -321,7 +321,7 @@ public:
 				}
 			} else {
 #ifndef REBUILD_NO_WARNINGS
-				printf("[    ] warning: %s: headers will not be parsed (non-source "
+				printf("[    ] warning: %s: headers will not be parsed (non-source C(++) "
 							 "file)\n",
 							 dependency.c_str());
 #endif

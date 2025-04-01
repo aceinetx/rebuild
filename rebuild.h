@@ -541,13 +541,14 @@ public:
 			if (token.type == TokenType::TARGET || token.type == TokenType::CTARGET) {
 				/*
 ctarget "rebuild" needs "rebuild.cpp"
-	cmd "g++ -o #OUT #DEPENDS"
+cmd "g++ -o #OUT #DEPENDS"
 				 */
 				Token out = lexer.next();
 				Token needs = lexer.next();
 				Token dependencies = lexer.next();
 				Token cmd = lexer.next();
 				Token cmd_s = lexer.next();
+				size_t oldPos = lexer.pos;
 				Token ctargs = lexer.next();
 				Token ctargs_s = lexer.next();
 
@@ -592,6 +593,7 @@ ctarget "rebuild" needs "rebuild.cpp"
 						rebuild_targets.push_back(CTarget::create(out.value, rebuild_split(dependencies.value, " "), cmd_s.value, REBUILD_STANDARD_CXX_COMPILER, ctargs_s.value));
 					}
 				}
+				lexer.pos = oldPos;
 			}
 			token = lexer.next();
 		}

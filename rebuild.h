@@ -94,6 +94,25 @@ std::string rebuild_join(std::vector<std::string> &vec, const char *delim) {
 }
 
 /*
+ * rebuild_split
+ * -------------
+ * Splits a string
+ */
+std::vector<std::string> rebuild_split(std::string s, std::string delimiter) {
+	std::vector<std::string> tokens;
+	size_t pos = 0;
+	std::string token;
+	while ((pos = s.find(delimiter)) != std::string::npos) {
+		token = s.substr(0, pos);
+		tokens.push_back(token);
+		s.erase(0, pos + delimiter.length());
+	}
+	tokens.push_back(s);
+
+	return tokens;
+}
+
+/*
  * rebuild_ends_with
  * -----------------
  * Checks if a string ends with something (C++ <20 solution)
@@ -376,6 +395,219 @@ static void rebuild_update_total_targets() {
 			rebuild_total_targets++;
 	}
 }
+
+/*
+ * rescript
+ * --------
+ * Contains functions/classes needed for rescript
+ */
+namespace rescript {
+
+/*
+ * TokenType
+ * ---------
+ * Contains token types
+ */
+enum class TokenType {
+	NIL,
+	IDENTIFIER,
+	TARGET,
+	CTARGET,
+	NEEDS,
+	CMD,
+	STRING,
+	CTARGS,
+	END,
+};
+
+/*
+ * Token
+ * -----
+ * Contains information about the current token
+ */
+struct Token {
+	TokenType type;
+	std::string value;
+};
+
+/*
+ * Lexer
+ * -----
+ * Tokenizes rescript code
+ */
+class Lexer {
+public:
+	std::string code;
+	size_t pos;
+
+	Lexer(std::string code) : code(code) {
+		pos = 0;
+	}
+
+	bool is_identifier_char(char c) {
+		return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_'));
+	}
+
+	Token string() {
+		Token token;
+		token.type = TokenType::STRING;
+		token.value = "";
+
+		pos++;
+
+		while (pos < code.length()) {
+			char c = code.at(pos);
+
+			if (c == '"') {
+				pos++;
+				break;
+			}
+
+			token.value.push_back(c);
+
+			pos++;
+		}
+
+		return token;
+	}
+
+	Token identifier() {
+		Token token;
+		token.type = TokenType::IDENTIFIER;
+		token.value = "";
+
+		while (pos < code.length()) {
+			char c = code.at(pos);
+
+			if (!is_identifier_char(c)) {
+				pos++;
+				break;
+			}
+
+			token.value.push_back(c);
+
+			pos++;
+		}
+
+		return token;
+	}
+
+	Token next() {
+		Token token;
+		token.type = TokenType::NIL;
+
+		while (pos < code.length()) {
+			char c = code.at(pos);
+
+			if (c == '"') {
+				token = string();
+			} else if (is_identifier_char(c)) {
+				token = identifier();
+				if (token.value == "target") {
+					token.type = TokenType::TARGET;
+				} else if (token.value == "ctarget") {
+					token.type = TokenType::CTARGET;
+				} else if (token.value == "needs") {
+					token.type = TokenType::NEEDS;
+				} else if (token.value == "cmd") {
+					token.type = TokenType::CMD;
+				} else if (token.value == "ctargs") {
+					token.type = TokenType::CTARGS;
+				}
+			}
+
+			if (token.type != TokenType::NIL) {
+				return token;
+			}
+
+			pos++;
+		}
+		if (token.type == TokenType::NIL)
+			token.type = TokenType::END;
+
+		return token;
+	}
+};
+
+class Runner {
+public:
+	Lexer &lexer;
+	Runner(Lexer &lexer) : lexer(lexer) {
+	}
+
+	bool run() {
+		Token token = lexer.next();
+		while (token.type != TokenType::END) {
+			if (token.type == TokenType::TARGET || token.type == TokenType::CTARGET) {
+				/*
+ctarget "rebuild" needs "rebuild.cpp"
+	cmd "g++ -o #OUT #DEPENDS"
+				 */
+				Token out = lexer.next();
+				Token needs = lexer.next();
+				Token dependencies = lexer.next();
+				Token cmd = lexer.next();
+				Token cmd_s = lexer.next();
+				Token ctargs = lexer.next();
+				Token ctargs_s = lexer.next();
+
+				if (out.type != TokenType::STRING) {
+					printf("[ !! ] rescript: excepted STRING after (C)TARGET\n");
+					return false;
+				}
+
+				if (needs.type != TokenType::NEEDS) {
+					printf("[ !! ] rescript: excepted NEEDS after STRING (target name)\n");
+					return false;
+				}
+
+				if (dependencies.type != TokenType::STRING) {
+					printf("[ !! ] rescript: excepted STRING (dependencies) after NEEDS\n");
+					return false;
+				}
+
+				if (cmd.type != TokenType::CMD) {
+					printf("[ !! ] rescript: excepted CMD after STRING (dependencies)\n");
+					return false;
+				}
+
+				if (cmd_s.type != TokenType::STRING) {
+					printf("[ !! ] rescript: excepted STRING after CMD\n");
+					return false;
+				}
+
+				if (ctargs.type == TokenType::CTARGS) {
+					if (ctargs_s.type != TokenType::STRING) {
+						printf("[ !! ] rescript: excepted STRING after CTARGS\n");
+						return false;
+					}
+				}
+
+				if (token.type == TokenType::TARGET) {
+					rebuild_targets.push_back(Target::create(out.value, rebuild_split(dependencies.value, " "), cmd_s.value));
+				} else if (token.type == TokenType::CTARGET) {
+					if (ctargs.type != TokenType::CTARGS) {
+						rebuild_targets.push_back(CTarget::create(out.value, rebuild_split(dependencies.value, " "), cmd_s.value));
+					} else {
+						rebuild_targets.push_back(CTarget::create(out.value, rebuild_split(dependencies.value, " "), cmd_s.value, REBUILD_STANDARD_CXX_COMPILER, ctargs_s.value));
+					}
+				}
+			}
+			token = lexer.next();
+		}
+
+		return true;
+	}
+};
+
+bool do_rescript(std::string code) {
+	Lexer lexer(code);
+	Runner runner(lexer);
+
+	return runner.run();
+}
+
+}; // namespace rescript
 
 int rebuild_main(int, char **);
 int main(int argc, char **argv, char **envp) {

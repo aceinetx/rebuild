@@ -29,9 +29,9 @@
 #include <vector>
 class Target;
 
-static char *rebuild_path;
-static char **rebuild_envp;
-static std::vector<Target *> rebuild_targets;
+static char* rebuild_path;
+static char** rebuild_envp;
+static std::vector<Target*> rebuild_targets;
 static uint64_t rebuild_last_run_time = 0;
 static uint32_t rebuild_built_targets = 0;
 static uint32_t rebuild_total_targets = 0;
@@ -41,7 +41,7 @@ static uint32_t rebuild_total_targets = 0;
  * ---------------
  * Checks if a file exists
  */
-static bool rebuild_fexists(std::string &name) {
+static bool rebuild_fexists(std::string& name) {
 	return (access(name.c_str(), F_OK) != -1);
 }
 
@@ -50,7 +50,7 @@ static bool rebuild_fexists(std::string &name) {
  * -------------------------
  * Gets last modified date of a file in UNIX time
  */
-static uint64_t rebuild_get_modified_date(std::string &filename) {
+static uint64_t rebuild_get_modified_date(std::string& filename) {
 	namespace fs = std::filesystem;
 
 	try {
@@ -59,7 +59,7 @@ static uint64_t rebuild_get_modified_date(std::string &filename) {
 		auto unix_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(sctp.time_since_epoch()).count();
 
 		return static_cast<uint64_t>(unix_timestamp);
-	} catch (const fs::filesystem_error &e) {
+	} catch (const fs::filesystem_error& e) {
 		return 0;
 	}
 }
@@ -69,7 +69,7 @@ static uint64_t rebuild_get_modified_date(std::string &filename) {
  * -------------------
  * Replaces every occurence in &str from &from to &to
  */
-std::string rebuild_replace_all(const std::string &str, const std::string &from, const std::string &to) {
+std::string rebuild_replace_all(const std::string& str, const std::string& from, const std::string& to) {
 	if (from.empty())
 		return str; // Avoid empty substring case
 
@@ -87,7 +87,7 @@ std::string rebuild_replace_all(const std::string &str, const std::string &from,
  * ------------
  * Joins a string vector into one string
  */
-std::string rebuild_join(std::vector<std::string> &vec, const char *delim) {
+std::string rebuild_join(std::vector<std::string>& vec, const char* delim) {
 	std::stringstream res;
 	copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
 	return res.str();
@@ -117,7 +117,7 @@ std::vector<std::string> rebuild_split(std::string s, std::string delimiter) {
  * -----------------
  * Checks if a string ends with something (C++ <20 solution)
  */
-bool rebuild_ends_with(std::string const &fullString, std::string const &ending) {
+bool rebuild_ends_with(std::string const& fullString, std::string const& ending) {
 	if (fullString.length() >= ending.length()) {
 		return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
 	} else {
@@ -146,7 +146,7 @@ static int rebuild_get_percentage() {
 static std::vector<std::string> rebuild_get_included_headers(std::string source_file, std::string compiler = REBUILD_STANDARD_CXX_COMPILER, std::string compiler_args = "") {
 	std::vector<std::string> headers;
 	std::string command = compiler + " -MM " + source_file + " " + compiler_args;
-	FILE *pipe = popen(command.c_str(), "r");
+	FILE* pipe = popen(command.c_str(), "r");
 	if (!pipe) {
 		return headers; // Failed to open pipe
 	}
@@ -182,7 +182,7 @@ static std::vector<std::string> rebuild_get_included_headers(std::string source_
 	pclose(pipe);
 
 	// Process each line to find headers
-	for (const auto &line : lines) {
+	for (const auto& line : lines) {
 		std::istringstream iss(line);
 		std::vector<std::string> tokens;
 		std::string token;
@@ -197,7 +197,7 @@ static std::vector<std::string> rebuild_get_included_headers(std::string source_
 		// Check if the first prerequisite is the source file
 		if (tokens[1] == source_file) {
 			for (size_t i = 2; i < tokens.size(); ++i) {
-				const std::string &header = tokens[i];
+				const std::string& header = tokens[i];
 				// Add header if not already present
 				if (find(headers.begin(), headers.end(), header) == headers.end()) {
 					headers.push_back(header);
@@ -235,7 +235,7 @@ public:
 	 * --------------
 	 * Creates a new heap-allocated target
 	 */
-	static Target *create(std::string output, std::vector<std::string> depends, std::string command) {
+	static Target* create(std::string output, std::vector<std::string> depends, std::string command) {
 		command = rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
 		command = rebuild_replace_all(command, "#OUT", output);
 		return new Target(output, depends, command);
@@ -252,7 +252,7 @@ public:
 		if (is_built)
 			return false;
 		for (std::string dependency : depends) {
-			for (Target *target : rebuild_targets) {
+			for (Target* target : rebuild_targets) {
 				if (target->output != dependency) {
 					continue;
 				}
@@ -295,7 +295,7 @@ public:
 
 		// Build needed dependencies
 		for (std::string dependency : depends) {
-			for (Target *target : rebuild_targets) {
+			for (Target* target : rebuild_targets) {
 				if (target->output == dependency) {
 					if (!target->build()) {
 						return false;
@@ -330,7 +330,7 @@ public:
 	 * ---------------
 	 * Creates a new heap-allocated target, auto appends header files
 	 */
-	static Target *create(std::string output, std::vector<std::string> depends, std::string command, std::string compiler = REBUILD_STANDARD_CXX_COMPILER, std::string compiler_args = "") {
+	static Target* create(std::string output, std::vector<std::string> depends, std::string command, std::string compiler = REBUILD_STANDARD_CXX_COMPILER, std::string compiler_args = "") {
 		command = rebuild_replace_all(command, "#DEPENDS", rebuild_join(depends, " "));
 		std::vector<std::string> todo_depends = {};
 		for (std::string dependency : depends) {
@@ -363,7 +363,7 @@ public:
  * Build all targets once
  */
 static bool rebuild_build_targets() {
-	for (Target *target : rebuild_targets) {
+	for (Target* target : rebuild_targets) {
 		if (!target->build()) {
 			printf("[ !! ] target %s failed to build\n", target->output.c_str());
 			return false;
@@ -377,7 +377,7 @@ static bool rebuild_build_targets() {
  * ------------------
  * Shifts arguments
  */
-static std::string rebuild_args_shift(int *argc, char ***argv) {
+static std::string rebuild_args_shift(int* argc, char*** argv) {
 	assert(*argc > 0 && "argc <= 0");
 	--(*argc);
 	return *(*argv)++;
@@ -390,7 +390,7 @@ static std::string rebuild_args_shift(int *argc, char ***argv) {
  */
 static void rebuild_update_total_targets() {
 	rebuild_total_targets = 0;
-	for (Target *target : rebuild_targets) {
+	for (Target* target : rebuild_targets) {
 		if (target->needs_building())
 			rebuild_total_targets++;
 	}
@@ -531,8 +531,8 @@ public:
 
 class Runner {
 public:
-	Lexer &lexer;
-	Runner(Lexer &lexer) : lexer(lexer) {
+	Lexer& lexer;
+	Runner(Lexer& lexer) : lexer(lexer) {
 	}
 
 	bool run() {
@@ -611,8 +611,8 @@ bool do_rescript(std::string code) {
 
 }; // namespace rescript
 
-int rebuild_main(int, char **);
-int main(int argc, char **argv, char **envp) {
+int rebuild_main(int, char**);
+int main(int argc, char** argv, char** envp) {
 	printf("[    ] rebuild by aceinetx (2022-2025)\n");
 	rebuild_path = argv[0];
 	rebuild_envp = envp;
@@ -642,7 +642,7 @@ int main(int argc, char **argv, char **envp) {
 			}
 
 			// cleanup
-			for (Target *target : rebuild_targets) {
+			for (Target* target : rebuild_targets) {
 				delete target;
 			}
 
@@ -654,7 +654,7 @@ int main(int argc, char **argv, char **envp) {
 				printf("[    ] exit with code %d\n", err);
 				return err;
 			}
-			for (Target *target : rebuild_targets) {
+			for (Target* target : rebuild_targets) {
 				try {
 					std::filesystem::remove(target->output);
 					printf("[    ] removed %s\n", target->output.c_str());
